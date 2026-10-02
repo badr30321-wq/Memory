@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لعبة الذاكرة</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6ead3;--ink:#2a2147;--card:#2a2147;--face:#fffaf0;--accent:#e4572e;--ok:#2f9e6e;--w:clamp(220px,min(92vw,calc(100vh - 330px)),1100px);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171329;--ink:#f6ead3;--card:#f0b44c;--face:#2a2147;--accent:#ff7a4d;--ok:#4cc38a}}
+:root[data-theme="dark"]{--bg:#171329;--ink:#f6ead3;--card:#f0b44c;--face:#2a2147;--accent:#ff7a4d;--ok:#4cc38a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Tajawal',Tahoma,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px;justify-content:center}
+h1{font-size:calc(var(--w)/11 + 8px);font-weight:800;margin:6px 0 4px;letter-spacing:-.5px}
+.sub{margin:0 0 16px;opacity:.75;font-size:calc(var(--w)/30 + 6px);text-align:center}
+.bar{display:flex;gap:10px;width:100%;max-width:var(--w);margin-bottom:16px}
+.stat{flex:1;border:2px solid var(--ink);border-radius:14px;padding:8px 10px;text-align:center}
+.stat b{display:block;font-size:calc(var(--w)/16 + 4px);font-weight:800}
+.stat span{font-size:calc(var(--w)/36 + 5px);opacity:.75}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--w)/42);width:100%;max-width:var(--w)}
+.c{aspect-ratio:1;perspective:600px;border:0;background:none;padding:0;cursor:pointer}
+.in{position:relative;width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d}
+.c.open .in{transform:rotateY(180deg)}
+.f,.b{position:absolute;inset:0;border-radius:calc(var(--w)/28);backface-visibility:hidden;display:flex;align-items:center;justify-content:center}
+.b{background:var(--card);background-image:radial-gradient(circle at 50% 50%,transparent 0 30%,rgba(255,255,255,.18) 31% 34%,transparent 35%)}
+.f{background:var(--face);border:3px solid var(--ink);transform:rotateY(180deg);font-size:calc(var(--w)/8.5)}
+.c.done .f{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--face))}
+.c:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:16px}
+button.go{margin-top:18px;background:var(--accent);color:#fff;border:0;border-radius:14px;padding:.6em 1.6em;font:800 calc(var(--w)/30 + 6px) 'Tajawal',Tahoma,sans-serif;cursor:pointer}
+.win{display:none;margin-top:16px;font-size:calc(var(--w)/22 + 6px);font-weight:800;color:var(--ok);text-align:center}
+button.fs{background:none;color:var(--ink);border:2px solid var(--ink);margin-inline-start:10px}
+:fullscreen body,body:fullscreen{background:var(--bg)}
+@media (prefers-reduced-motion:reduce){.in{transition:none}}
+</style>
+</head>
+<body>
+<h1>لعبة الذاكرة</h1>
+<p class="sub">اقلب البطاقات ولاقِ كل زوج متشابه</p>
+<div class="bar">
+  <div class="stat"><b id="moves">0</b><span>حركات</span></div>
+  <div class="stat"><b id="time">0</b><span>ثانية</span></div>
+  <div class="stat"><b id="pairs">0/8</b><span>أزواج</span></div>
+</div>
+<div class="board" id="board"></div>
+<div class="win" id="win"></div>
+<div><button class="go" id="restart">ابدأ من جديد</button><button class="go fs" id="fs">ملء الشاشة</button></div>
+<script>
+const EM=['🐪','🌴','☕','🦅','🌙','🕌','🍯','⭐'];
+let first=null,lock=false,moves=0,pairs=0,t=0,timer=null;
+const $=id=>document.getElementById(id);
+function start(){
+  clearInterval(timer);first=null;lock=false;moves=0;pairs=0;t=0;
+  $('moves').textContent=0;$('time').textContent=0;$('pairs').textContent='0/8';$('win').style.display='none';
+  const deck=[...EM,...EM].sort(()=>Math.random()-.5);
+  $('board').innerHTML='';
+  deck.forEach(e=>{
+    const b=document.createElement('button');b.className='c';b.setAttribute('aria-label','بطاقة');b.dataset.e=e;
+    b.innerHTML='<div class="in"><div class="b"></div><div class="f">'+e+'</div></div>';
+    b.onclick=()=>flip(b);$('board').appendChild(b);
+  });
+}
+function flip(c){
+  if(lock||c.classList.contains('open'))return;
+  if(!timer)timer=setInterval(()=>{t++;$('time').textContent=t},1000);
+  c.classList.add('open');
+  if(!first){first=c;return}
+  moves++;$('moves').textContent=moves;
+  if(first.dataset.e===c.dataset.e){
+    first.classList.add('done');c.classList.add('done');first=null;pairs++;
+    $('pairs').textContent=pairs+'/8';
+    if(pairs===8){clearInterval(timer);timer=null;
+      $('win').textContent='مبروك! خلصتها في '+moves+' حركة و'+t+' ثانية';$('win').style.display='block'}
+  }else{
+    lock=true;const a=first;first=null;
+    setTimeout(()=>{a.classList.remove('open');c.classList.remove('open');lock=false},800);
+  }
+}
+$('restart').onclick=()=>{timer=null;start()};
+$('fs').onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}catch(e){}};
+start();
+</script>
+</body>
+</html>
